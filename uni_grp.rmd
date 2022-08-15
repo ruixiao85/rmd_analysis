@@ -1,0 +1,188 @@
+---
+title: "`r tools::toTitleCase(gsub('_',' ',tools::file_path_sans_ext(knitr::current_input())))`"
+author: Rui Xiao
+date: "`r Sys.Date()`"
+params:
+  f: "cl0814.tsv"
+  x: "1"
+  y: "2:ncol(df)"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      hidden: true
+    number_sections: true
+    # code_folding: hide
+    theme: readable
+    highlight: haddock
+    self_contained: true
+    css: styles.css
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 2
+    number_sections: true
+# ```{r, child="_base.rmd", eval=T}
+# ```
+# word_document
+---
+
+
+# Initialize Environment
+```{r option, include=FALSE}
+knitr::opts_chunk$set(echo=F,warning=F,message=F,tidy=T,
+dpi=150,fig.width=5,fig.height=5,out.width="720px",out.height="720px")
+is_html<-knitr::is_html_output(exclude=c("markdown","epub"))
+```
+
+```{r param, out.height="12"}
+suppressMessages(library(tidyverse))
+library(readxl)
+if (is_html) {
+  library(DT)
+  library(plotly); plot_ly()
+}
+source("_helper.R")
+print(params)
+```
+
+# Data Processing
+```{r read}
+pf<-params$f
+if (is.null(pf) || !file.exists(pf)) stop("no input file or file doesn't exist")
+# df<-read_tb(pf,na=c("NaN","NA",""))
+df<-read_tb(pf,na=c("NaN","NA","",0)) # WARNING, also exclude ZERO
+if (is_html) {
+  DT::datatable(df, escape=F, rownames=F, filter="top", fillContainer=T,
+  options=list(pageLength=5, scrollX=T, scrollY=F))
+} else {
+  cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
+}
+
+px<-ifelse(is.null(params$x), params$x, "1")
+py<-ifelse(is.null(params$y), params$y, "2:ncol(df)")
+
+(xs<-colnames(df)[eval(parse(text=px))])
+x<-xs[1]; gs<-sort(unique(df[[x]])) # only 1 y, split into groups
+(ys<-colnames(df)[eval(parse(text=py))])
+
+```
+
+# Select Groups
+```{r selgroup, results='asis'}
+tab<-freq_pct(df[[x]]) %>% rownames_to_column(var="Group") # only 1st y con
+cat("\n```\n", sep=""); print(tab); cat("\n```\n", sep="")
+tab$Group<-fac_wrap_rev(tab$Group)
+if (is_html) {
+  p<-plot_ly(tab, type='bar', orientation='h',
+      x=~Freq, y=~Group, color=~Group,
+      text=~Freq, textposition='outside', textfont=list(color='black')) %>%
+    layout(xaxis=list(title="cases"), yaxis=list(title=""),
+      legend=list(traceorder="reversed"))
+  print(htmltools::tagList(p))
+} else {
+  p<-ggplot(tab, aes(x=Group, y=Freq, fill=Group, label=Freq))+
+    geom_col(width=0.6,alpha=0.7)+geom_text()+
+    guides(fill=guide_legend(reverse=T))+
+    theme_bw()+labs(x="")+coord_flip()
+  print(p)
+}
+```
+
+# Each Comparison
+```{r loopCol, results='asis', warning=F}
+for (y in ys){
+  cont<-is_cont(df[[y]])
+  cat("\n\n## ",y, "\n",
+    "\n```\n", y, " (", ifelse(cont, "continuous", "categorical"), ")",
+    sep="")
+  dsv<-df[is_valid(df[[y]]), c(x,y)]; colnames(dsv)<-c("Group","Var")
+  if (cont) { # continuous
+    res<-dplyr::tibble(Group=character(), n=numeric(),
+      y=numeric(), ymin=numeric(), ymax=numeric(), Label=character())
+    for (g in gs) {
+      dat<-dsv$Var[dsv$Group==g]; dat<-dat[is_valid(dat)] # group specific valid datapoints
+      d_n<-length(dat); d_m<-mean(dat); d_sd<-sd(dat)
+      res<-dplyr::add_row(res, Group=g, n=d_n, y=d_m, ymin=d_m-d_sd, ymax=d_m+d_sd,
+        Label=paste0(round(d_m,1), "±", round(d_sd,1), " (", d_n, ")"))
+    }
+    print(quantile(dsv$Var)); print(res)
+    form<-as.formula(paste("Var","Group",sep="~"))
+    if (length(gs)==2) { # 2 groups
+      cat("t-test (Welch Two Sample): P ", ps_fmt(t.test(form, data=dsv)$`p.value`), "\n", sep="")
+    } else { # 3+ groups
+      cat("ANOVA summary:\n"); aov<-aov(form, data=dsv); print(summary(aov))
+      cat("Tukey multiple comparisons (95% CI):\n")
+      tukey<-as.data.frame(TukeyHSD(x=aov)$Group)
+      tukey$signif<-ps_sym(tukey$`p adj`)
+      print(tukey)
+    }
+    cat("\n```\n")
+    res$Group<-fac_wrap_rev(paste(y,res$Group))
+    dsv$Group<-fac_wrap_rev(paste(y,dsv$Group))
+    if (is_html) { # continuous html
+      p<-plot_ly(dsv, x=~Var, y=~Group, split=~Group, type='violin', orientation='h',
+        box=list(visible=T), meanline=list(visible=T), points="outliers",
+        opacity=0.75, height=20+120*nlevels(res$Group)) %>%
+      add_annotations(xref="Var", yref="Group", x=res$y, y=res$Group,
+        text=gsub(" ","\n",res$Label), ax=0) %>%
+      layout(title=list(text=y), xaxis=list(title="mean, sd, (sample size)"), yaxis=list(title=""),
+        legend=list(traceorder="reversed"))
+      print(htmltools::tagList(p))
+    } else { # continuous flat
+      p<-ggplot(dsv, aes(x=Group, y=Var, color=Group, fill=Group))+
+        geom_violin(trim=F, alpha=0.2, width=0.4)+
+        geom_pointrange(aes(y=y, ymin=ymin, ymax=ymax), data=res, show.legend=F)+
+        geom_text(aes(y=y, label=gsub(" ","\n",Label)), data=res, color="black", show.legend=F)+
+        labs(x="",y="mean, sd, (sample size)", title=y)+ theme_bw()+coord_flip()
+      print(p)
+    }
+  } else { # categorical
+    res<-dplyr::tibble(Group=character(), Category=character(), n=numeric(),
+      y=numeric(), ymin=numeric(), ymax=numeric(), Label=character())
+    for (g in gs) {
+      for (v in sort(unique(dsv$Var))) {
+        match_ctg<-dsv$Var[dsv$Group==g]==v
+        br<-boot::boot(match_ctg, pct_true, R=100)
+        brp<-boot::boot.ci(br, type='perc')$percent
+        res<-dplyr::add_row(res, Group=g, Category=as.character(v), n=sum(match_ctg),
+        y=br$t0, ymin=brp[4], ymax=brp[5], Label=paste0(round(br$t0*100,1),"% (",sum(match_ctg),")"))
+      }
+    }
+    if (nrow(res)>0) {
+      print(res)
+      cat("\n```\n")
+      if (length(unique(res$Category))>1) {
+        res$Group<-fac_wrap_rev(paste(y,res$Group))
+        res$Category<-fac_wrap_rev(res$Category)
+        if (is_html) { # categorical html
+          res<-res[with(res, order(Category,Group)), ] # align error bar
+          p<-plot_ly(res, x=~y, y=~Group, color=~Category, text=~gsub(" ","\n",Label),
+            height=10+60*(nlevels(res$Group)+nlevels(res$Category)),
+            textposition='outside', textfont=list(color="black"),
+            error_x=~list(symmetric=F, y=~Group, array=ymax-y, arrayminus=y-ymin, thickness=3),
+            marker=list(opacity=0.55, line=list(color="black",width=2)), type='bar', orientation='h') %>%
+          layout(xaxis=list(title="%, 95% CI, (sample size)"), yaxis=list(title=""), title=list(text=y),
+            legend=list(traceorder='reversed'), barmode='group')
+          print(htmltools::tagList(p))
+        } else { # categorical flat
+          p<-ggplot(res, aes(x=Group, y=y, group=Category, color=Category,shape=Category))+
+            geom_pointrange(aes(ymin=ymin, ymax=ymax), position=position_dodge(0.9))+
+            geom_line(position=position_dodge(0.9))+
+            geom_text(aes(label=Label), color="black", position=position_dodge(0.9), show.legend=F)+
+            labs(x="",y="%, 95% CI, (sample size)", title=y)+
+            guides(color=guide_legend(reverse=T), shape=guide_legend(reverse=T))+
+            scale_y_continuous(labels=scales::percent, expand=expansion(mult=c(0.1,0.1)))+
+            theme_bw()+coord_flip()
+          print(p)
+        }
+      } else { cat("\n```\n")}
+    }
+  }
+  #break
+}
+
+```
+
