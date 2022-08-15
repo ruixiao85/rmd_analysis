@@ -152,7 +152,7 @@ for (y in ys){
       }
     }
     if (nrow(res)>0) {
-      print(res)
+      print(res); print(chisq_multi(res))
       cat("\n```\n")
       if (length(unique(res$Category))>1) {
         res$Group<-fac_wrap_rev(paste(y,res$Group))

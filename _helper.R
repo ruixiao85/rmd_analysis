@@ -32,6 +32,34 @@ freq_pct<-function(list) {
   tab$Pct<-round(100.0*tab$Freq/sum(tab$Freq),1)
   return(tab)
 }
-
+chisq_multi<-function(mat, p.adj="fdr", verbose=F) {
+  mat<-mat %>% select(Group, Category, n)
+  catu<-unique(mat$Category)
+  grpc<-combn(unique(mat$Group), 2)
+  resm<-tibble(Comparison=character(), Category=character(), p=numeric())
+  mat<-mat %>% group_by(Group) %>%
+    summarize(across(), other=sum(n), .groups='keep') %>% mutate(other=other-n)
+  for (ci in 1:length(catu)) {
+    matc<-mat %>% filter(Category==catu[ci]) %>% select(-Category)
+    for (gi in 1:ncol(grpc)) {
+      matcg<-matc %>% filter(Group %in% grpc[,gi]) %>%
+        column_to_rownames(var="Group")
+      cst<-chisq.test(matcg) # print(matcg)
+      if (verbose) {
+        cat(paste(paste(grpc[1,gi],grpc[2,gi],sep="-"),catu[ci],sep=" @ "),end="\n")
+        print(cst)
+      }
+      resm<-resm %>% add_row(Comparison=paste(grpc[1,gi],grpc[2,gi],sep="-"),
+        Category=catu[ci],p=cst$`p.value`)
+    }
+  }
+  if (is.null(p.adj)) {
+    resm$signif<-ps_sym(resm$p)
+  } else {
+    resm[[p.adj]]<-p.adjust(resm$p, method=p.adj)
+    resm$signif<-ps_sym(resm[[p.adj]])
+  }
+  return(resm)
+}
 
 

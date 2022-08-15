@@ -14,7 +14,7 @@ apt install -y xfonts-utils \
 
 
 R -e 'BiocManager::install(c("ggpubr","jvm"),update=FALSE)'
-R -e 'BiocManager::install(c("rmarkdown","formatR"),update=FALSE)'
+R -e 'BiocManager::install(c("rmarkdown"),update=FALSE)'
 R -e 'BiocManager::install(c("DT","plotly"),update=FALSE)'
 
 
