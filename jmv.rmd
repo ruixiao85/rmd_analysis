@@ -1,0 +1,79 @@
+---
+title: "`r tools::toTitleCase(gsub('_',' ',tools::file_path_sans_ext(knitr::current_input())))`"
+author: Rui Xiao
+date: "`r Sys.Date()`"
+params:
+  f: "cl0814.tsv"
+  x: "age,height,weight"
+  g: "group,gender"
+  y: "SBP,DBP,E(cm/s),A(cm/s),E/A,E/e',LVEDV(ml),LVESV(ml),LVSimpston,A4C,A2C,APLAX,GLS,PSD,GWI,GCW,GWW,GWE,LA1,LA2,LA3,LAVImax(ml/m2),LAVImin,LAEF"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      hidden: true
+    number_sections: true
+    # code_folding: hide
+    theme: readable
+    highlight: haddock
+    self_contained: true
+    css: styles.css
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 2
+    number_sections: true
+# ```{r, child="_base.rmd", eval=T}
+# ```
+# word_document
+---
+
+
+# Initialize Environment
+```{r option, include=FALSE}
+knitr::opts_chunk$set(echo=F,warning=F,message=F,tidy=T,
+dpi=150,fig.width=5,fig.height=5,out.width="720px",out.height="720px")
+is_html<-knitr::is_html_output(exclude=c("markdown","epub"))
+```
+
+```{r param, out.height="12"}
+suppressMessages(library(tidyverse))
+library(readxl)
+if (is_html) {
+  library(DT)
+  library(plotly); plot_ly()
+}
+source("_helper.R")
+print(params)
+```
+
+# Data Processing
+```{r read}
+pf<-params$f
+py<-unlist(strsplit(params$y,","))
+pg<-unlist(strsplit(params$g,","))
+px<-unlist(strsplit(params$x,","))
+if (is.null(pf) || !file.exists(pf)) stop("no input file or file doesn't exist")
+# df<-read_tb(pf,na=c("NaN","NA",""))
+df<-read_tb(pf,na=c("NaN","NA","",0)) # WARNING, also exclude ZERO
+if (is_html) {
+  DT::datatable(df, escape=F, rownames=F, filter="top", fillContainer=T,
+  options=list(pageLength=5, scrollX=T, scrollY=F))
+} else {
+  cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
+}
+
+```
+
+# MANCOVA
+```{r mancova}
+# library(jmv)
+par=list()
+par[["data"]]<-df
+par[["deps"]]<-py
+par[["covs"]]<-px
+par[["factors"]]<-pg
+do.call(jmv::mancova, par)
+```
