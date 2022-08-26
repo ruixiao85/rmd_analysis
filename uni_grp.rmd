@@ -17,7 +17,8 @@ output:
     # code_folding: hide
     theme: readable
     highlight: haddock
-    self_contained: true
+    self_contained: false
+    lib_dir: libs
     css: styles.css
   pdf_document:
     latex_engine: xelatex
@@ -38,13 +39,11 @@ is_html<-knitr::is_html_output(exclude=c("markdown","epub"))
 ```
 
 ```{r param, out.height="12"}
-suppressMessages(library(tidyverse))
-library(readxl)
-if (is_html) {
-  library(DT)
-  library(plotly); plot_ly()
-}
 source("_helper.R")
+req_lib(c("tidyverse","readxl"))
+if (is_html) {
+  req_lib(c("DT","plotly")); plot_ly()
+}
 print(params)
 ```
 
@@ -61,8 +60,12 @@ if (is_html) {
   cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
 }
 
+
 px<-ifelse(is.null(params$x), params$x, "1")
 py<-ifelse(is.null(params$y), params$y, "2:ncol(df)")
+
+# df$group<-ifelse(df$age>=50,paste0(df$group,">=50"),paste0(df$group,"<50"))
+# py<-"6:ncol(df)"
 
 (xs<-colnames(df)[eval(parse(text=px))])
 x<-xs[1]; gs<-sort(unique(df[[x]])) # only 1 y, split into groups

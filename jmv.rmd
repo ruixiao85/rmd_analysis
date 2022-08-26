@@ -18,7 +18,8 @@ output:
     # code_folding: hide
     theme: readable
     highlight: haddock
-    self_contained: true
+    self_contained: false
+    lib_dir: libs
     css: styles.css
   pdf_document:
     latex_engine: xelatex
@@ -39,13 +40,12 @@ is_html<-knitr::is_html_output(exclude=c("markdown","epub"))
 ```
 
 ```{r param, out.height="12"}
-suppressMessages(library(tidyverse))
+source("_helper.R")
+req_lib(c("tidyverse","jmv"))
 library(readxl)
 if (is_html) {
-  library(DT)
-  library(plotly); plot_ly()
+  req_lib(c("DT"))
 }
-source("_helper.R")
 print(params)
 ```
 
@@ -64,7 +64,6 @@ if (is_html) {
 } else {
   cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
 }
-
 ```
 
 # MANCOVA

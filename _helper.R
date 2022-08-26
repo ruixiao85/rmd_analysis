@@ -1,3 +1,11 @@
+req_lib<-function(paks){
+  if (!is.vector(paks)) paks<-c(paks)
+  for (p in paks) {
+    if (!require(p, character.only=T)) {
+      BiocManager::install(p,update=FALSE); library(p,character.only=T)
+    }
+  }
+}
 read_tb<-function(file,...){
   ext<-tolower(tools::file_ext(file)); ext1<-substr(ext,1,1)
   # readRDS(file)
