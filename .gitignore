@@ -1,2 +1,11 @@
 libs
 *.?sv
+
+*.png
+*.pdf
+*.jpg
+*.html
+*.docx
+
+*.zip
+*.gz
