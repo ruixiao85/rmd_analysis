@@ -6,7 +6,7 @@ params:
   f: "cl0814.tsv"
   x: "age,height,weight"
   g: "group,gender"
-  y: "SBP,DBP,E(cm/s),A(cm/s),E/A,E/e',LVEDV(ml),LVESV(ml),LVSimpston,A4C,A2C,APLAX,GLS,PSD,GWI,GCW,GWW,GWE,LA1,LA2,LA3,LAVImax(ml/m2),LAVImin,LAEF"
+  y: "SBP,DBP,E(cm/s),A(cm/s),E/A,E/e',LVEDV(ml),LVESV(ml),LVSimpston,A4C,A2C,APLAX,GLS,PSD,GWI,GCW,GWW,GWE,LA1,LA2,LA3,LAVImax,LAVImin,LAEF"
 output:
   html_document:
     toc: true

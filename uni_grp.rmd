@@ -3,9 +3,9 @@ title: "`r tools::toTitleCase(gsub('_',' ',tools::file_path_sans_ext(knitr::curr
 author: Rui Xiao
 date: "`r Sys.Date()`"
 params:
-  f: "cl0814.tsv"
+  f: "cl230108cl.tsv"
   x: "1"
-  y: "2:ncol(df)"
+  y: "9:ncol(df)"
 output:
   html_document:
     toc: true
@@ -60,22 +60,17 @@ if (is_html) {
   cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
 }
 
-
-px<-ifelse(is.null(params$x), params$x, "1")
-py<-ifelse(is.null(params$y), params$y, "2:ncol(df)")
-
-# df$group<-ifelse(df$age>=50,paste0(df$group,">=50"),paste0(df$group,"<50"))
-# py<-"6:ncol(df)"
+px<-ifelse(!is.null(params$x), params$x, "1")
+py<-ifelse(!is.null(params$y), params$y, "2:ncol(df)")
 
 (xs<-colnames(df)[eval(parse(text=px))])
-x<-xs[1]; gs<-sort(unique(df[[x]])) # only 1 y, split into groups
 (ys<-colnames(df)[eval(parse(text=py))])
-
+x<-xs[1]; (gs<-sort(unique(df[[x]]))) # only 1 y, split into groups
 ```
 
 # Select Groups
 ```{r selgroup, results='asis'}
-tab<-freq_pct(df[[x]]) %>% rownames_to_column(var="Group") # only 1st y con
+tab<-freq_pct(df[[x]]) %>% rownames_to_column(var="Group") # only 1st
 cat("\n```\n", sep=""); print(tab); cat("\n```\n", sep="")
 tab$Group<-fac_wrap_rev(tab$Group)
 if (is_html) {
@@ -95,7 +90,7 @@ if (is_html) {
 ```
 
 # Each Comparison
-```{r loopCol, results='asis', warning=F}
+```{r loopCol, results='asis', warning=F, error=T}
 for (y in ys){
   cont<-is_cont(df[[y]])
   cat("\n\n## ",y, "\n",
@@ -108,8 +103,10 @@ for (y in ys){
     for (g in gs) {
       dat<-dsv$Var[dsv$Group==g]; dat<-dat[is_valid(dat)] # group specific valid datapoints
       d_n<-length(dat); d_m<-mean(dat); d_sd<-sd(dat)
-      res<-dplyr::add_row(res, Group=g, n=d_n, y=d_m, ymin=d_m-d_sd, ymax=d_m+d_sd,
-        Label=paste0(round(d_m,1), "±", round(d_sd,1), " (", d_n, ")"))
+      if (d_n>0) {
+        res<-dplyr::add_row(res, Group=g, n=d_n, y=d_m, ymin=d_m-d_sd, ymax=d_m+d_sd,
+          Label=paste0(round(d_m,1), "±", round(d_sd,1), " (", d_n, ")"))
+      }
     }
     print(quantile(dsv$Var)); print(res)
     form<-as.formula(paste("Var","Group",sep="~"))
@@ -139,7 +136,8 @@ for (y in ys){
         geom_violin(trim=F, alpha=0.2, width=0.4)+
         geom_pointrange(aes(y=y, ymin=ymin, ymax=ymax), data=res, show.legend=F)+
         geom_text(aes(y=y, label=gsub(" ","\n",Label)), data=res, color="black", show.legend=F)+
-        labs(x="",y="mean, sd, (sample size)", title=y)+ theme_bw()+coord_flip()
+        labs(x="",y="mean, sd, (sample size)", title=y)+
+        theme_bw()+coord_flip()+theme(legend.position="none")
       print(p)
     }
   } else { # categorical
@@ -148,10 +146,12 @@ for (y in ys){
     for (g in gs) {
       for (v in sort(unique(dsv$Var))) {
         match_ctg<-dsv$Var[dsv$Group==g]==v
-        br<-boot::boot(match_ctg, pct_true, R=100)
-        brp<-boot::boot.ci(br, type='perc')$percent
-        res<-dplyr::add_row(res, Group=g, Category=as.character(v), n=sum(match_ctg),
-        y=br$t0, ymin=brp[4], ymax=brp[5], Label=paste0(round(br$t0*100,1),"% (",sum(match_ctg),")"))
+        if (any(match_ctg)) {
+          br<-boot::boot(match_ctg, pct_true, R=100)
+          brp<-boot::boot.ci(br, type='perc')$percent
+          res<-dplyr::add_row(res, Group=g, Category=as.character(v), n=sum(match_ctg),
+            y=br$t0, ymin=brp[4], ymax=brp[5], Label=paste0(round(br$t0*100,1),"% (",sum(match_ctg),")"))
+        }
       }
     }
     if (nrow(res)>0) {
@@ -178,7 +178,7 @@ for (y in ys){
             labs(x="",y="%, 95% CI, (sample size)", title=y)+
             guides(color=guide_legend(reverse=T), shape=guide_legend(reverse=T))+
             scale_y_continuous(labels=scales::percent, expand=expansion(mult=c(0.1,0.1)))+
-            theme_bw()+coord_flip()
+            theme_bw()+coord_flip()+theme(legend.position="none")
           print(p)
         }
       } else { cat("\n```\n")}
