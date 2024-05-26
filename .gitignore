@@ -1,5 +1,5 @@
 libs
-*.?sv
+out
 
 *.png
 *.pdf

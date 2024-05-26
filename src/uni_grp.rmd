@@ -3,9 +3,9 @@ title: "`r tools::toTitleCase(gsub('_',' ',tools::file_path_sans_ext(knitr::curr
 author: Rui Xiao
 date: "`r Sys.Date()`"
 params:
-  f: "cl230108cl.tsv"
+  f: "../data/cl_240526.csv"
   x: "1"
-  y: "9:ncol(df)"
+  y: "2:ncol(df)"
 output:
   html_document:
     toc: true
@@ -17,8 +17,8 @@ output:
     # code_folding: hide
     theme: readable
     highlight: haddock
-    self_contained: false
-    lib_dir: libs
+    self_contained: true
+    # lib_dir: libs
     css: styles.css
   pdf_document:
     latex_engine: xelatex
@@ -44,15 +44,15 @@ req_lib(c("tidyverse","readxl"))
 if (is_html) {
   req_lib(c("DT","plotly")); plot_ly()
 }
+# params=list(f="../data/cl_240526.csv", x="1", y="2:3")
 print(params)
 ```
 
 # Data Processing
 ```{r read}
-pf<-params$f
-if (is.null(pf) || !file.exists(pf)) stop("no input file or file doesn't exist")
-# df<-read_tb(pf,na=c("NaN","NA",""))
-df<-read_tb(pf,na=c("NaN","NA","",0)) # WARNING, also exclude ZERO
+if (is.null(params$f) || !file.exists(params$f)) stop("no input file or file doesn't exist")
+# df<-read_tb(params$f,na=c("NaN","NA",""))
+df<-read_tb(params$f,na=c("NaN","NA","",0)) # WARNING, also exclude ZERO
 if (is_html) {
   DT::datatable(df, escape=F, rownames=F, filter="top", fillContainer=T,
   options=list(pageLength=5, scrollX=T, scrollY=F))
@@ -60,11 +60,8 @@ if (is_html) {
   cat("Actual dimension: [",paste(dim(df),collapse="x"),"], preview:\n",sep=""); print(head(df))
 }
 
-px<-ifelse(!is.null(params$x), params$x, "1")
-py<-ifelse(!is.null(params$y), params$y, "2:ncol(df)")
-
-(xs<-colnames(df)[eval(parse(text=px))])
-(ys<-colnames(df)[eval(parse(text=py))])
+(xs<-colnames(df)[eval(parse(text=params$x))])
+(ys<-colnames(df)[eval(parse(text=params$y))])
 x<-xs[1]; (gs<-sort(unique(df[[x]]))) # only 1 y, split into groups
 ```
 
