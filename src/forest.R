@@ -1,5 +1,5 @@
 # https://cran.r-project.org/web/packages/forestploter/vignettes/forestploter-intro.html
-BiocManager::install("forestploter")
+# BiocManager::install("forestploter")
 
 library(tidyverse)
 library(grid)
@@ -62,40 +62,39 @@ p
 dev.off()
 
 
-BiocManager::install("caret")
+library("tidyverse")
+options(crayon.enabled = FALSE)
+
+# BiocManager::install("caret")
 library("caret")
 
-sf=read.csv("data/cl_240604.csv", stringsAsFactors = F)
-# sf=read_csv("data/cl_240604.csv")
-head(sf)
+# BiocManager::install("questionr")
+library("questionr")
+sf=read_csv("data/cl_241018.csv")
+ss=sf%>% filter(surgery == 0) # Non-ablation only
 
-d <- data.frame(num = c(0, 1, 0.5),
-  char = c("All", "Non-Ablation", "Ablation"))
-
-res=list()
-for (i in 1:3){
-  print(cat(i, d[i,]$num, d[i,]$char))
-  ss<-sf[abs(sf$surgery-(d[i,]$num))<=0.5,]
-  print(head(ss))
-  for (v in c("Afburden", "newCI", "HTN", "DM")) {
-    cm <- confusionMatrix(data=factor(ss[[v]]), reference=factor(ss[["newHF"]]))
-    fe <- fisher.test(cm$table)
-    res[[paste(d[i,]$char, v, sep="_")]]<-data.frame(OddsRatio=fe$estimate, Lower=fe$conf.int[1], Upper=fe$conf.int[2], PValue=fe$p.value)
-  }
+res <- data.frame()
+for (v in c("HTN", "DM", "CAD", "proBNP", "BMI", "age", "gender", "SBP", "DBP", "E", "A", "DT", "EA", "Ee", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GLS", "PSD", "GWI", "GCW", "GWW", "GWE", "LA1", "LA2", "LA3", "LAVImax", "LAVImin", "LAVmax", "LAVpreA", "LAEF")){
+  reg <- glm(paste0("Afburden", "~", v), data=ss, family=binomial)
+  so <- odds.ratio(reg) %>% rownames_to_column("Factor") %>% as_tibble()
+  res <- rbind(res, so %>% tail(1))
 }
 
-df<-do.call(rbind, res)
-df <- tibble::rownames_to_column(df, "Cohort_Indicator")
-df$` ` <- paste(rep(" ", 24), collapse = " ")
-png('rplot.png', res = 300, width = 9, height = 6, units = "in")
-p <- forest(df,
-  est = df$OddsRatio,
-  lower = df$Lower,
-  upper = df$Upper,
+res <- res %>% rename("OddsRatio" = "OR") %>% rename("Lower" = "2.5 %") %>% rename("Upper" = "97.5 %") %>% rename("P-Value" = "p")
+res$` ` <- paste(rep(" ", 28), collapse = " ")
+
+png('rplot.png', res = 300, width = 8, height = 10, units = "in")
+p <- forest(
+  res,
+  est = res[,2],
+  lower = res[,3],
+  upper = res[,4],
   ci_column=6,
   ref_line = 1,
+  boxsize = .25,
   # xlim = c(0, 4),
   # ticks_at = c(0.5, 1, 2, 3)
 )
 p
 dev.off()
+
