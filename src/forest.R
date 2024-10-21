@@ -1,9 +1,11 @@
+
+if (FALSE) {
 # https://cran.r-project.org/web/packages/forestploter/vignettes/forestploter-intro.html
 # BiocManager::install("forestploter")
 
 library(tidyverse)
 library(grid)
-library(forestploter)
+
 
 # Read provided sample example data
 dt <- read.csv(system.file("extdata", "example_data.csv", package = "forestploter"))[,1:6]
@@ -61,9 +63,11 @@ p <- forest(dt[,c(1:7)],
 p
 dev.off()
 
+}
 
-library("tidyverse")
 options(crayon.enabled = FALSE)
+library("tidyverse")
+library(forestploter)
 
 # BiocManager::install("caret")
 library("caret")
@@ -71,19 +75,29 @@ library("caret")
 # BiocManager::install("questionr")
 library("questionr")
 sf=read_csv("data/cl_241018.csv")
-ss=sf%>% filter(surgery == 0) # Non-ablation only
 
+# ss <- sf %>% filter(surgery == 0) # Non-ablation only
+ss <- sf
+# colnames(ss)
+
+y="newHF"
+cov <- c("age", "gender", "HTN", "DM", "CAD", "surgery")
+var <- c("GCW", "GWW", "GWE", "GWI", "LAEF", "LAVImax", "LAVImin", "LAVmax", "LAVpreA")
+oth <- c("proBNP", "BMI", "SBP", "DBP", "E", "A", "DT", "EA", "Ee", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GLS", "PSD", "LA1", "LA2", "LA3")
+err <- c("DM") # error, removed from var, because DM==1 whenever newHF==1
 res <- data.frame()
-for (v in c("HTN", "DM", "CAD", "proBNP", "BMI", "age", "gender", "SBP", "DBP", "E", "A", "DT", "EA", "Ee", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GLS", "PSD", "GWI", "GCW", "GWW", "GWE", "LA1", "LA2", "LA3", "LAVImax", "LAVImin", "LAVmax", "LAVpreA", "LAEF")){
-  reg <- glm(paste0("Afburden", "~", v), data=ss, family=binomial)
-  so <- odds.ratio(reg) %>% rownames_to_column("Factor") %>% as_tibble()
-  res <- rbind(res, so %>% tail(1))
+for (x in var){
+  print(formula <- paste(y, paste(append(cov, x), collapse=" + "), sep=" ~ "))
+  reg <- glm(formula, data=ss, family=binomial)
+  so <- odds.ratio(reg) %>% rownames_to_column("Variable") %>% as_tibble()
+  res <- rbind(res, so %>% filter(Variable == x))
 }
 
 res <- res %>% rename("OddsRatio" = "OR") %>% rename("Lower" = "2.5 %") %>% rename("Upper" = "97.5 %") %>% rename("P-Value" = "p")
 res$` ` <- paste(rep(" ", 28), collapse = " ")
+res <- res %>% mutate_at(vars(2:5), round, 2)
 
-png('rplot.png', res = 300, width = 8, height = 10, units = "in")
+png(paste0(y,"~",paste(cov, collapse="+"),".png"), res = 300, width = 8, height = 6, units = "in")
 p <- forest(
   res,
   est = res[,2],
@@ -92,6 +106,7 @@ p <- forest(
   ci_column=6,
   ref_line = 1,
   boxsize = .25,
+  title="Odds Ratio for Heart Failure, Controlling for \nGender, Age, Hypertension, Diabetes, Coronary Artery\nDisease and Surgery Status.\n",
   # xlim = c(0, 4),
   # ticks_at = c(0.5, 1, 2, 3)
 )
