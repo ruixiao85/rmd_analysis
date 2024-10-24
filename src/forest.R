@@ -76,11 +76,12 @@ library("caret")
 library("questionr")
 sf=read_csv("data/cl_241018.csv")
 
-# ss <- sf %>% filter(surgery == 0) # Non-ablation only
-ss <- sf
+# ss <- sf; sel<-"all"
+ss <- sf %>% filter(surgery == 0); sel<-"no" # Non-ablation only
 # colnames(ss)
 
-y="newHF"
+# y="newHF"
+y="Afburden"
 cov <- c("age", "gender", "HTN", "DM", "CAD", "surgery")
 var <- c("GCW", "GWW", "GWE", "GWI", "LAEF", "LAVImax", "LAVImin", "LAVmax", "LAVpreA")
 oth <- c("proBNP", "BMI", "SBP", "DBP", "E", "A", "DT", "EA", "Ee", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GLS", "PSD", "LA1", "LA2", "LA3")
@@ -97,7 +98,7 @@ res <- res %>% rename("OddsRatio" = "OR") %>% rename("Lower" = "2.5 %") %>% rena
 res$` ` <- paste(rep(" ", 28), collapse = " ")
 res <- res %>% mutate_at(vars(2:5), round, 2)
 
-png(paste0(y,"~",paste(cov, collapse="+"),".png"), res = 300, width = 8, height = 6, units = "in")
+png(paste0(sel, '_', y,"~",paste(cov, collapse="+"),".png"), res = 300, width = 8, height = 6, units = "in")
 p <- forest(
   res,
   est = res[,2],
@@ -106,7 +107,9 @@ p <- forest(
   ci_column=6,
   ref_line = 1,
   boxsize = .25,
-  title="Odds Ratio for Heart Failure, Controlling for \nGender, Age, Hypertension, Diabetes, Coronary Artery\nDisease and Surgery Status.\n",
+  # title="Odds Ratio for Heart Failure, Controlling for \nGender, Age, Hypertension, Diabetes, Coronary Artery\nDisease and Surgery Status.\n",
+  # title="Odds Ratio for AF Burden, Controlling for \nGender, Age, Hypertension, Diabetes, Coronary Artery\nDisease and Surgery Status.\n",
+  title="Odds Ratio for AF Burden, Controlling for \nGender, Age, Hypertension, Diabetes, and\nCoronary ArteryDisease.\n",
   # xlim = c(0, 4),
   # ticks_at = c(0.5, 1, 2, 3)
 )
