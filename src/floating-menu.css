@@ -1,0 +1,59 @@
+/* --- Floating Menu (Table of Contents) CSS --- */
+#TOC {
+  position: fixed;
+  top: 20px; /* Adjust as needed */
+  left: 20px; /* Adjust as needed */
+  width: 250px; /* Width of your floating menu */
+  background-color: #f8f8f8; /* Light background for visibility */
+  padding: 15px;
+  border: 1px solid #ddd;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  overflow-y: auto; /* Add scrollbar if TOC is too long */
+  max-height: calc(100vh - 40px); /* Adjust to fit viewport, 40px for top/bottom margin */
+  z-index: 1000; /* Ensure it stays on top of other content */
+}
+
+/* --- Main Content Adjustment --- */
+body {
+  /* Adjust padding-left to make space for the floating menu */
+  /* Width of menu (300px) + left padding of menu (15px) + border (1px) + some extra margin (e.g., 20px) */
+  padding-left: calc(300px + 15px + 1px + 20px); /* 286px in this example */
+  /* You might also want to set a max-width for the content to keep it readable */
+  max-width: 800px; /* Or whatever width you prefer for your main content */
+  margin-right: auto; /* Center the content if max-width is set */
+  margin-top: 20px; /* Add some top margin as well */
+  margin-bottom: 20px;
+}
+
+/* For smaller screens, you might want to hide the floating menu or change its position */
+@media (max-width: 900px) { /* Adjust breakpoint as needed */
+  #TOC {
+      position: static; /* Make it part of the normal flow */
+      width: auto;
+      max-height: none;
+      margin: 20px; /* Give it some margin */
+      box-shadow: none; /* Remove shadow if it's no longer floating */
+      border: none;
+  }
+
+  body {
+      padding-left: 20px; /* Reset padding for smaller screens */
+      padding-right: 20px; /* Add some right padding too */
+      max-width: none; /* Let content take full width */
+      margin-left: auto;
+      margin-right: auto;
+  }
+}
+/* --- Image Resizing CSS --- */
+img {
+  max-width: 100%; /* Images will not exceed the width of their parent container */
+  height: auto;    /* Maintain aspect ratio */
+  display: block;  /* Helps prevent extra space below images */
+  margin: 0 auto;  /* Centers images if they are smaller than 100% width */
+}
+
+/* If you have images that are figures with captions, Pandoc often wraps them in <figure> */
+figure {
+  max-width: 100%; /* Ensure the figure container also doesn't overflow */
+  margin: 1em 0; /* Default margin for figures */
+}
