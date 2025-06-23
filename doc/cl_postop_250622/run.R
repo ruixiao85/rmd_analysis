@@ -42,6 +42,8 @@ vars=c(
 timepoint_combinations <- combn(1:4, 2, simplify = FALSE)
 unique_names <- unique(dt$ChineseName)
 
+vars_sig = c() # Initialize vars_sig
+
 for (var in vars) {
   for (combo in timepoint_combinations) {
     timepoint1 <- combo[1]
@@ -55,25 +57,81 @@ for (var in vars) {
     if (nrow(comparison_data) > 1 && length(unique(comparison_data$ChineseName)) > 1) {
       t_test_result <- t.test(comparison_data[[var]] ~ Timepoint, data = comparison_data, paired = TRUE) #
       if (t_test_result$p.value < 0.1) {
+        vars_sig <- unique(c(vars_sig, var)) # Add var to vars_sig
         png_name <- paste0("out/boxplot_", var, "_", timepoint1, "_vs_", timepoint2, ".png")
         plot_title <- paste("Comparison of Timepoints",
           unique(comparison_data$TimepointDesc[comparison_data$Timepoint == timepoint1]),
           "and",
           unique(comparison_data$TimepointDesc[comparison_data$Timepoint == timepoint2]),
           "\nP-value:", format.pval(t_test_result$p.value, digits = 3))
-        ggplot(comparison_data, aes(x = factor(TimepointDesc, levels = unique(comparison_data$TimepointDesc)), y = comparison_data[[var]])) + # Use var to point to the column
-          geom_boxplot() +
-          ggtitle(plot_title) +
-          ylab(var) +
-          xlab("Timepoint") +
-          my_theme +
-          ggsave(png_name)
+        png(png_name, width = 8, height = 6, units = "in", res = 300)
+        print(
+          ggplot(comparison_data, aes(x = factor(TimepointDesc, levels = unique(comparison_data$TimepointDesc)), y = comparison_data[[var]])) + # Use var to point to the column
+            geom_boxplot() +
+            ggtitle(plot_title) +
+            ylab(var) +
+            xlab("Timepoint") +
+            my_theme
+        )
+        dev.off() # Close the PNG device
         cat(sprintf("Generated boxplot: ![](%s)\n", png_name))
       }
     }
   }
 }
 
+cat("## Long to Wide Transform\n\n")
+
+library(reshape2)
+# install.packages("pheatmap")
+library(pheatmap)
+
+
+for (var in vars_sig) {
+  # Filter and prepare data once
+  filtered_data <- dt %>%
+    filter(Timepoint %in% c(1, 2, 3)) %>%
+    select(ChineseName, Timepoint, all_of(var)) %>%
+    drop_na()
+
+  wide_data <- filtered_data %>%
+    pivot_wider(names_from = Timepoint, values_from = all_of(var), names_prefix = "Timepoint_") %>%
+    column_to_rownames(var = "ChineseName") %>%
+    t() %>% scale() %>% t() %>%
+    as.data.frame()
+
+  # Convert wide_data back to long format for plotting
+  long_data <- wide_data %>%
+    rownames_to_column(var = "ChineseName") %>%
+    pivot_longer(cols = starts_with("Timepoint_"), names_to = "Timepoint", values_to = "Value")
+
+  # Plot boxplot across timepoints
+  png_name_boxplot <- paste0("out/boxplot_across_timepoints_", var, ".png")
+  png(png_name_boxplot, width = 8, height = 6, units = "in", res = 300)
+  print(
+    ggplot(long_data, aes(x = Timepoint, y = Value)) +
+      geom_boxplot() +
+      ggtitle(paste("Boxplot of", var, "across Timepoints")) +
+      ylab(var) +
+      xlab("Timepoint")
+  )
+  dev.off()
+  cat(sprintf("Generated boxplot: ![](%s)\n", png_name_boxplot))
+
+  # Calculate one-way ANOVA P value
+  anova_result <- aov(Value ~ Timepoint, data = long_data)
+  anova_p_value <- summary(anova_result)[[1]]["Pr(>F)"][1, 1]
+  cat(sprintf("ANOVA P-value %.4f\n", anova_p_value))
+
+  png_name <- paste0("out/heatmap_", var, ".png")
+  png(png_name, width = 8, height = 6, units = "in", res = 300)
+  pheatmap(na.omit(wide_data), # Remove rows with NA values directly in the heatmap function
+    main = paste("Heatmap of", var, "across Timepoints"),
+    cluster_rows = TRUE,
+    cluster_cols = FALSE)
+  dev.off()
+  cat(sprintf("Generated heatmap: ![](%s)\n", png_name))
+}
 
 sink()
 cat("\nAnalysis complete. Log saved to run_log.md\n")
