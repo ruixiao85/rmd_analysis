@@ -45,7 +45,7 @@ cat("Original column names:\n")
 print(colnames(dt))
 
 dt <- dt %>% filter(is.na(Exclude)) %>% select(-c(Exclude, Annotation, ProBNP, ChineseName,
-    HR, LVIDd, LAVmin, LAEV, LASr, LAScd, LASct, LASrc, LAScdc, LASctc
+  HR, LVIDd, LAVmin, LAEV, LASr, LAScd, LASct, LASrc, LAScdc, LASctc
 ))
 cat("Filtered column names:\n")
 print(colnames(dt))

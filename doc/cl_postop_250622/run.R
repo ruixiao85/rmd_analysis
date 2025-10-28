@@ -14,7 +14,7 @@ library(cutpointr) # Will still need this package if you want cutpointr function
 library(Rcpp) # Dependency for cutpointr
 # install.packages("extrafont")
 library(extrafont)
-font_import()
+# font_import(prompt = FALSE) # run once
 loadfonts(device="win")
 my_theme <- theme(
   text = element_text(family = "Times New Roman"), # Apply to all text
@@ -28,7 +28,7 @@ my_theme <- theme(
 )
 
 cat("Loading data...\n")
-dt <- readxl::read_excel("250622date.xlsx")
+dt <- readxl::read_excel("250626date.xlsx")
 cat("Original column names:\n")
 print(colnames(dt))
 
@@ -37,7 +37,7 @@ library(tidyr)
 
 covs=c("Age", "Gender")
 vars=c(
-  "LVIDd", "iVS", "LVdMassIndex", "TR", "E", "A", "E_A", "DT", "e_in", "e_out", "A_in", "A_out", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GloblStrainAV", "PSD", "GWI", "GCW", "GWW", "GWE", "LAVmin", "LAVmax", "LAVpreA", "LAVImax", "LAEV", "LAEF", "LASr", "LAScd", "LASct", "LASrc", "LAScdc", "LASctc"
+  "LVIDd", "iVS", "LVdMassIndex", "TR", "E", "A", "EA", "DT", "ein", "eout", "Ain", "Aout", "Ee", "LVEDV", "LVESV", "LVSimpston", "A4C", "A2C", "APLAX", "GloblStrainAV", "PSD", "GWI", "GCW", "GWW", "GWE", "LAVmin", "LAVmax", "LAVpreA", "LAVImax", "LAEV", "LAEF", "LASr", "LAScd", "LASct", "LASrc", "LAScdc", "LASctc"
 )
 timepoint_combinations <- combn(1:4, 2, simplify = FALSE)
 unique_names <- unique(dt$ChineseName)
@@ -52,10 +52,20 @@ for (var in vars) {
       filter(Timepoint %in% c(timepoint1, timepoint2)) %>%
       filter(!is.na(!!sym(var))) %>% # Remove NA values for the variable
       group_by(ChineseName) %>%
-      filter(n() > 1) %>%
+      filter(n() == 2) %>% # Ensure exactly one observation per timepoint
       ungroup()
+
     if (nrow(comparison_data) > 1 && length(unique(comparison_data$ChineseName)) > 1) {
-      t_test_result <- t.test(comparison_data[[var]] ~ Timepoint, data = comparison_data, paired = TRUE) #
+      # Reshape data to wide format for paired t-test
+      paired_data <- comparison_data %>%
+        select(ChineseName, Timepoint, !!sym(var)) %>%
+        pivot_wider(names_from = Timepoint, values_from = !!sym(var))
+
+      # Perform paired t-test
+      t_test_result <- t.test(paired_data[[as.character(timepoint1)]],
+                              paired_data[[as.character(timepoint2)]],
+                              paired = TRUE)
+
       if (t_test_result$p.value < 0.1) {
         vars_sig <- unique(c(vars_sig, var)) # Add var to vars_sig
         png_name <- paste0("out/boxplot_", var, "_", timepoint1, "_vs_", timepoint2, ".png")
@@ -66,11 +76,14 @@ for (var in vars) {
           "\nP-value:", format.pval(t_test_result$p.value, digits = 3))
         png(png_name, width = 8, height = 6, units = "in", res = 300)
         print(
-          ggplot(comparison_data, aes(x = factor(TimepointDesc, levels = unique(comparison_data$TimepointDesc)), y = comparison_data[[var]])) + # Use var to point to the column
-            geom_boxplot() +
+          ggplot(comparison_data, aes(x = factor(TimepointDesc, levels = unique(comparison_data$TimepointDesc)), y = !!sym(var))) +
+            geom_boxplot(color = "blue", fill = "lightblue", alpha = 0.6) +
+            geom_jitter(width = 0.2, color = "black", size = 1) +
             ggtitle(plot_title) +
             ylab(var) +
             xlab("Timepoint") +
+            stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f +/- %.2f", ..y.., sd(comparison_data[[var]]))),
+                         vjust = -0.5, color = "red") +
             my_theme
         )
         dev.off() # Close the PNG device
@@ -90,7 +103,7 @@ library(pheatmap)
 for (var in vars_sig) {
   # Filter and prepare data once
   filtered_data <- dt %>%
-    filter(Timepoint %in% c(1, 2, 3)) %>%
+    filter(Timepoint %in% 1:4) %>%
     select(ChineseName, Timepoint, all_of(var)) %>%
     drop_na()
 
@@ -110,10 +123,13 @@ for (var in vars_sig) {
   png(png_name_boxplot, width = 8, height = 6, units = "in", res = 300)
   print(
     ggplot(long_data, aes(x = Timepoint, y = Value)) +
-      geom_boxplot() +
+      geom_boxplot(color = "blue", fill = "lightblue", alpha = 0.6) +
+      geom_jitter(width = 0.2, color = "black", size = 1) +
       ggtitle(paste("Boxplot of", var, "across Timepoints")) +
       ylab(var) +
-      xlab("Timepoint")
+      xlab("Timepoint") +
+    stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f +/- %.2f", ..y.., sd(long_data$Value))),
+                       vjust = -0.5, color = "red")
   )
   dev.off()
   cat(sprintf("Generated boxplot: ![](%s)\n", png_name_boxplot))
