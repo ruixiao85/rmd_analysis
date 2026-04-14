@@ -1,5 +1,11 @@
+# Install required packages if not already installed
+required_packages <- c("tidyverse", "lme4", "ggpubr", "readxl", "cutpointr", "Rcpp", "extrafont", "reshape2", "pheatmap", "emmeans")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
 # Ensure the 'out' directory exists
 if (!dir.exists("out")) { dir.create("out") }
+
 
 sink("run_log.md")
 
@@ -34,7 +40,7 @@ mean_sd_label <- function(x) {
 }
 
 cat("Loading data...\n")
-dt <- readxl::read_excel("../../data/250626date.xlsx")
+dt <- readxl::read_excel("postop_260413_RX.xlsx")
 cat("Original column names:\n")
 print(colnames(dt))
 
