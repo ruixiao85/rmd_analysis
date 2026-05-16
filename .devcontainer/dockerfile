@@ -1,0 +1,44 @@
+# Use the rocker/tidyverse devcontainer as base
+FROM ghcr.io/rocker-org/devcontainer/tidyverse:4
+
+# Install system dependencies for LaTeX/pdf rendering, fonts, and proc utilities
+RUN apt update && apt install -y \
+    xfonts-utils \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    lmodern \
+    procps \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install R packages used across the project
+RUN R -e 'install.packages(c("BiocManager"), repos="https://cloud.r-project.org/")'
+RUN R -e 'BiocManager::install(c( \
+    "tidyverse", \
+    "rmarkdown", \
+    "DT", \
+    "plotly", \
+    "ggpubr", \
+    "jmv", \
+    "pwr", \
+    "forestploter", \
+    "caret", \
+    "questionr", \
+    "skimr", \
+    "naniar", \
+    "cutpointr", \
+    "corrplot", \
+    "lme4", \
+    "lmerTest", \
+    "extrafont", \
+    "emmeans", \
+    "pROC", \
+    "janitor", \
+    "RColorBrewer", \
+    "broom", \
+    "reshape2", \
+    "pheatmap", \
+    "Rcpp", \
+    "sjPlot" \
+), update=FALSE)'
